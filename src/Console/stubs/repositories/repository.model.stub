@@ -1,0 +1,37 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Helpers\GenerateCode;
+use {{ namespacedModel }};
+
+class {{ class }}
+{
+    /**
+     * Create a new class instance.
+     */
+    public function __construct(private {{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+
+    /**
+     * create a new record in storage.
+     */
+    public function create(array $data){
+        $data['code']   = $data['code']??$this->generateReferenceCode();
+        return $this->{{ modelVariable }}->create($data);
+    }
+
+    /**
+     * update existing record in storage.
+     */
+    public function update(array $data){
+        $this->{{ modelVariable }}->update($data);
+        return $this->{{ modelVariable }}->fresh();
+    }
+
+    public function generateReferenceCode(){
+        return (new GenerateCode($this->{{ modelVariable }}, config('serial.{{ modelVariable }}Code.key','{{ modelVariable }}Code'), config('serial.{{ modelVariable }}Code.value','SRL000001')))->generateReference();
+    }
+}

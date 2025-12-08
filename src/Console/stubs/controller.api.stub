@@ -1,0 +1,219 @@
+<?php
+
+namespace {{ namespace }};
+
+use {{ rootNamespace }}Http\Controllers\Controller;
+
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+use App\Http\Resources\Miscellaneous;
+use App\Enums\StatusResponse        as EnumsResponse;
+use App\Filters\Helper\Requests     as FilterRequests;
+use App\Http\Requests\Image         as ImageRequests;
+
+use {{ namespacedModel }};
+use {{ namespacedFilter }};
+use {{ namespacedRepository }};
+use {{ namespacedResources }};
+use {{ namespacedRequests }};
+use {{ namespacedTypes }};
+
+class {{ class }} extends Controller
+{
+
+    public function __construct(private {{repository}} ${{repositoryVariable}})
+    {
+        //
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(FilterRequests\FilterRequest $request)
+    {
+        $search  	=  $request->input('query');
+		$sort    	=  $request->input('sort');
+		$perPage 	=  $request->input('limit', 10);
+        $page    	=  $request->input('page', 1);
+        $type       =  $request->route('type', 'ALL');
+
+        try{
+            $query      = {{ model }}::query()->SearchFields($search)->FilterFields($request)->SortFields($sort);
+            $filter     = new {{ filter }}($query,$request);
+
+            $totals     = $query->count();
+            $records    = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
+            $counts     = $records->count();
+
+            $pagination = [
+                'totalCount' => $totals,
+                'currPage'   => $page,
+                'pageCount'  => $counts,
+                'limit'      => $perPage,
+            ];
+
+            return $this->successResponse(
+                data    : [
+                    'contactList'   => Resources\ListResource::collection($records),
+                    'pagination'    => $pagination
+                ],
+                message : 'Record List'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse(message : $e->getMessage());
+        }
+        
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Requests\StoreRequest $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validated          = $request->validated();
+            $model              = new {{types}}($validated);
+            $createDetail       = $this->{{repositoryVariable}}->create($model->toArray());
+            if(is_null($contactDetail)){
+                throw new \Exception('Insertion Error');
+            }
+
+            
+
+            DB::commit();
+            return $this->successResponse(
+                data    : new Resources\ListResource($createDetail),
+                message : 'Record insert successfully.'
+            );
+        } catch(\Illuminate\Database\QueryException $e){
+            DB::rollback();
+            $message    = $e->getMessage();
+            $errorCode  = $e->errorInfo[1];
+            if($errorCode == '1062'){
+                $message = ('Duplicate Entry');
+            }
+            return $this->errorResponse(message : $message);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse(message : $e->getMessage());
+        }
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Request $request, {{ model }} ${{ modelVariable }})
+    {
+        return $this->successResponse(
+            data    : new Resources\DetailResource(${{ modelVariable }}),
+            message : 'Record fetch successfully.'
+        );
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Requests\UpdateRequest $request, {{ model }} ${{ modelVariable }})
+    {
+        DB::beginTransaction();
+        try {
+            $validated          = $request->validated();
+            $model              = new {{types}}($validated);
+            $updateDetail       = ${{ modelVariable }}->update($model->toArray());
+            if(is_null($updateDetail)){
+                throw new \Exception('Updation Error');
+            }            
+            DB::commit();
+
+            return $this->successResponse(
+                data    : new Resources\ListResource(${{ modelVariable }}->fresh()),
+                message : 'Record insert successfully.'
+            );
+        } catch(\Illuminate\Database\QueryException $e){
+            DB::rollback();
+            $message    = $e->getMessage();
+            $errorCode  = $e->errorInfo[1];
+            if($errorCode == '1062'){
+                $message = ('Duplicate Entry');
+            }
+            return $this->errorResponse(message : $message);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse(message : $e->getMessage());
+        }
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy({{ model }} ${{ modelVariable }})
+    {
+        DB::beginTransaction();
+        try {
+            ${{ modelVariable }}->trash(
+                fn ($m) => $m->status = 'ARCHIVED'
+            );
+            DB::commit();
+            return $this->successResponse(
+                data    : new Resources\ListResource(${{ modelVariable }}),
+                message : 'Record deleted successfully.'
+            );
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse(message : $e->getMessage());
+        }
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function restore({{ model }} ${{ modelVariable }})
+    {
+        DB::beginTransaction();
+        try {
+            ${{ modelVariable }}->rollback(
+                fn ($m) => $m->status = $contactDetail->last_status
+            );
+            
+            DB::commit();
+            return $this->successResponse(
+                data    : new Resources\ListResource(${{ modelVariable }}),
+                message : 'Record restored successfully.'
+            );
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse(message : $e->getMessage());
+        }
+    }
+
+    /**
+     * Request S3 Bucket signed url.
+     */
+    public function signedRequest(ImageRequests\SignedRequest $request)
+    {
+        $validated  = $request->only('fileName');
+        try {
+            $presignedUrlDetail = [];
+            $presignedUrlData   = [];
+            foreach($validated['fileName'] as $fname){
+                list($fileName,$uploadUrl) = \S3Bucket::getSignedRequest($fname,config('media.signedUrl.contactImages'));
+                $presignedUrlDetail[$fname]  = [
+                    'fileName'  => $fileName,
+                    'uploadUrl' => $uploadUrl
+                ];
+                $presignedUrlData['presignedUrl'] = $presignedUrlDetail;
+            }
+            return $this->successResponse(
+                data    : $presignedUrlData,
+                message : 'Presigned url created successfully.'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                message :$e->getMessage()
+            );
+        }
+    }
+}

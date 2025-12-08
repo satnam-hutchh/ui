@@ -1,0 +1,13 @@
+<?php
+
+namespace {{ namespace }};
+
+use {{ rootNamespace }}Filters\abstractFilter;
+
+class {{ class }} extends abstractFilter
+{
+    public function setNameCondition($condition,$param){
+        $this->query->getModel()->defaultFilter = false;
+        $this->filterCondition->{$condition}($this->qualifyColumn('name'),$param);
+    }
+}

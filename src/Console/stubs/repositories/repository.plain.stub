@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Helpers\GenerateCode;
+
+class {{ class }}
+{
+    /**
+     * Create a new class instance.
+     */
+    public function __construct()
+    {
+        //
+    }
+}
