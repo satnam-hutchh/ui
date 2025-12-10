@@ -114,6 +114,19 @@ class ControllerMakeCommand extends GeneratorCommand
         return $rootNamespace.'\Http\Controllers';
     }
 
+    function removeAdjacentDuplicates(array $items): array
+    {
+        $result = [];
+
+        foreach ($items as $item) {
+            if (empty($result) || end($result) !== $item) {
+                $result[] = $item;
+            }
+        }
+
+        return $result;
+    }
+
     /**
      * Build the class with the given name.
      *
@@ -129,7 +142,16 @@ class ControllerMakeCommand extends GeneratorCommand
         $rootNamespace          = $this->rootNamespace();
         $controllerNamespace    = $this->getNamespace($name);
 
-        $replace = [];
+        $requestResource    = ltrim($requestName, '\\/');
+        $requestResource    = str_replace('/', '\\', $requestResource);
+        $requestResource    = trim(implode('\\', $this->removeAdjacentDuplicates(explode('\\', $requestResource))), '\\');
+
+
+
+        $replace = [
+            '{{classVariable}}'     => lcfirst(class_basename($requestName)),
+            '{{ classVariable }}'   => lcfirst(class_basename($requestName))
+        ];
 
         if ($this->option('parent')) {
             $replace = $this->buildParentReplacements();
@@ -152,11 +174,11 @@ class ControllerMakeCommand extends GeneratorCommand
         }
 
         if ($this->option('requests') || $this->option('resource')) {
-            $replace = $this->buildFormRequestReplacements($replace, $requestName);
+            $replace = $this->buildFormRequestReplacements($replace, $requestResource);
         }
 
         if ($this->option('resource')) {
-            $replace = $this->buildFormResourceReplacements($replace, $requestName);
+            $replace = $this->buildFormResourceReplacements($replace, $requestResource);
         }
 
         if ($this->option('creatable')) {

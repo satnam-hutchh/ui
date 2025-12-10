@@ -56,7 +56,7 @@ class {{ class }} extends Controller
 
             return $this->successResponse(
                 data    : [
-                    'contactList'   => Resources\ListResource::collection($records),
+                    '{{ classVariable }}List'   => Resources\ListResource::collection($records),
                     'pagination'    => $pagination
                 ],
                 message : 'Record List'
@@ -77,11 +77,9 @@ class {{ class }} extends Controller
             $validated          = $request->validated();
             $model              = new {{types}}($validated);
             $createDetail       = $this->{{repositoryVariable}}->create($model->toArray());
-            if(is_null($contactDetail)){
+            if(is_null($createDetail)){
                 throw new \Exception('Insertion Error');
             }
-
-            
 
             DB::commit();
             return $this->successResponse(
@@ -130,7 +128,7 @@ class {{ class }} extends Controller
 
             return $this->successResponse(
                 data    : new Resources\ListResource(${{ modelVariable }}->fresh()),
-                message : 'Record insert successfully.'
+                message : 'Record updated successfully.'
             );
         } catch(\Illuminate\Database\QueryException $e){
             DB::rollback();
