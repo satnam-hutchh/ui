@@ -5,6 +5,7 @@ namespace {{ namespace }};
 use {{ rootNamespace }}Http\Controllers\Controller;
 
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -75,15 +76,15 @@ class {{ class }} extends Controller
         DB::beginTransaction();
         try {
             $validated          = $request->validated();
-            $model              = new {{types}}($validated);
-            $createDetail       = $this->{{repositoryVariable}}->create($model->toArray());
-            if(is_null($createDetail)){
+            ${{ classVariable }}Model              = new {{types}}($validated);
+            ${{ classVariable }}Detail       = $this->{{repositoryVariable}}->create(${{ classVariable }}Model->toArray());
+            if(is_null(${{ classVariable }}Detail)){
                 throw new \Exception('Insertion Error');
             }
 
             DB::commit();
             return $this->successResponse(
-                data    : new Resources\ListResource($createDetail),
+                data    : new Resources\ListResource(${{ classVariable }}Detail),
                 message : 'Record insert successfully.'
             );
         } catch(\Illuminate\Database\QueryException $e){
@@ -119,8 +120,8 @@ class {{ class }} extends Controller
         DB::beginTransaction();
         try {
             $validated          = $request->validated();
-            $model              = new {{types}}($validated);
-            $updateDetail       = ${{ modelVariable }}->update($model->toArray());
+            ${{ classVariable }}Model              = new {{types}}($validated);
+            $updateDetail       = ${{ modelVariable }}->update(${{ classVariable }}Model->toArray());
             if(is_null($updateDetail)){
                 throw new \Exception('Updation Error');
             }            
@@ -173,7 +174,7 @@ class {{ class }} extends Controller
         DB::beginTransaction();
         try {
             ${{ modelVariable }}->rollback(
-                fn ($m) => $m->status = $contactDetail->last_status
+                fn ($m) => $m->status = ${{ modelVariable }}->last_status
             );
             
             DB::commit();
